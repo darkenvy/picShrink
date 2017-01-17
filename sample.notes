@@ -1,0 +1,45 @@
+./mwoffliner.js 
+--mwUrl=https://en.wikipedia.org/ 
+--adminEmail tim@timmoody.com 
+--articleList selections/Test_Seed_List_enwiki.lst 
+--cacheDirectory /library/working/mwoffliner 
+--outputDirectory /library/downloads/mwoffliner 
+--filenamePrefix wikishrink –withZimFullTextIndex
+
+
+./mwoffliner.js 
+--mwUrl "http://tardis.wikia.com/" 
+--adminEmail darkenvy6@gmail.com 
+--redisSocket 6379 
+--format "nozim"
+
+
+./mwoffliner.js --mwUrl=https://en.wikipedia.org/ --adminEmail darkenvy6@gmail.com --articleList selections/Test_Seed_List_enwiki.lst --cacheDirectory /library/working/mwoffliner --outputDirectory /library/downloads/mwoffliner --filenamePrefix wikishrink
+
+
+-----------
+   mogrify 
+   -path $3 
+   -filter Triangle 
+   -define filter:support=2 
+   -thumbnail $2 
+   -unsharp 0.25x0.08+8.3+0.045 
+   -dither None 
+   -posterize 136 
+   -quality 82 
+   -define jpeg:fancy
+   -upsampling=off 
+   -define png:compression
+   -filter=5 
+   -define png:compression
+   -level=9 
+   -define png:compression
+   -strategy=1 
+   -define png:exclude
+   -chunk=all 
+   -interlace none 
+   -colorspace sRGB $1
+
+
+
+convert 3f36541f575801e6ff1a.png -posterize 32 -dither Riemersma -define png:compression-level=9 -colorspace sRGB -interlace none -quality 82 aaa-out.jpg
