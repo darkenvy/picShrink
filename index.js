@@ -18,4 +18,4 @@ function readdir(dir) {
 }
 
 var all = readdir(__dirname + '/in/');
-console.log(all);
+console.log(imageLocations);
