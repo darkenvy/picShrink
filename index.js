@@ -17,8 +17,14 @@ function readdir(dir, imgLocations) {
   return imgLocations;
 }
 
-function compareSize(originalFilename, newFilename) {
+function deleteFile(filename) {
+  return fs.unlink(filename);
+}
 
+function isNewSmaller(originalFilename) {
+  var original = fs.statSync(originalFilename).size;
+  var converted = fs.statSync(originalFilename + '.out').size;
+  return original > converted ? true : false;
 }
 
 function identify(filename) {
@@ -30,21 +36,43 @@ function identify(filename) {
   })
 }
 
-function convert(filename) {
-  var arguments = [filename];
+function convert(imageArgs) {
+  return new Promise(function(resolve, reject) {
+    im.convert(imageArgs, function(err, stdout) {
+      // console.log('stdout: ', stdout);
+    })
+  })
+}
+
+function main(filename) {
+  var imgArgs = [filename];
   identify(filename)
   .then(function(meta) {
-    if (meta.format == 'PNG') {}
-    if (meta.format == 'JPEG') {}
-    if (meta.colorspace != 'sRGB') {}
-    if (meta.depth > 8) {}
+    if (meta.format == 'PNG') imgArgs.push('-define', 'png:compression-level=9');
+    if (meta.colorspace != 'sRGB') imgArgs.push('-colorspace', 'sRGB');
+    if (meta.depth > 8) imgArgs.push('-depth', '8');
+    if (meta.interlace != 'None') imgArgs.push('-interlace', 'none');
+    imgArgs.push('-posterize', '32');
+    imgArgs.push('-dither', 'Riemersma');
+    imgArgs.push('-quality', '82');
+    imgArgs.push(filename + '.out');
   })
+  .then(function() {convert(imgArgs)})
   .then(function() {
-    console.log(filename);
+    if (!isNewSmaller(filename)) {
+      imgArgs.splice(imgArgs.length - 3, 2); // -quality 82 always at that loc
+      convert(imgArgs)
+      .then(function() {
+        if (!isNewSmaller(filename)) deleteFile(filename);
+      })
+    }
+    // at this point, all .out files are smaller than the originals
+    // overwrite the orignals and cleanup
+
   })
 
 }
 
 var imageLocations = readdir(__dirname + '/in/', []);
 // console.log(imageLocations);
-convert(imageLocations[0])
+main(imageLocations[0])
