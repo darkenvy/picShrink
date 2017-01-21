@@ -39,12 +39,14 @@ function identify(filename) {
 function convert(imageArgs) {
   return new Promise(function(resolve, reject) {
     im.convert(imageArgs, function(err, stdout) {
+      if (err) console.log(err);
+      resolve();
       // console.log('stdout: ', stdout);
     })
   })
 }
 
-function main(filename) {
+function processImage(filename) {
   var imgArgs = [filename];
   identify(filename)
   .then(function(meta) {
@@ -52,27 +54,34 @@ function main(filename) {
     if (meta.colorspace != 'sRGB') imgArgs.push('-colorspace', 'sRGB');
     if (meta.depth > 8) imgArgs.push('-depth', '8');
     if (meta.interlace != 'None') imgArgs.push('-interlace', 'none');
-    imgArgs.push('-posterize', '32');
+    if (meta.width > 50) imgArgs.push('-posterize', '32'); // remove from if and compare icons before/after
     imgArgs.push('-dither', 'Riemersma');
-    imgArgs.push('-quality', '82');
+    imgArgs.push('-quality', '82'); // dont move. needs to be second to last
     imgArgs.push(filename + '.out');
   })
-  .then(function() {convert(imgArgs)})
   .then(function() {
-    if (!isNewSmaller(filename)) {
-      imgArgs.splice(imgArgs.length - 3, 2); // -quality 82 always at that loc
-      convert(imgArgs)
-      .then(function() {
-        if (!isNewSmaller(filename)) deleteFile(filename);
-      })
-    }
+    return convert(imgArgs)
+  })
+  .then(function() {
+    if (!isNewSmaller(filename) && imgArgs[imgArgs.length - 3] == '-quality') {
+      imgArgs.splice(imgArgs.length - 3, 2);
+      convert(imgArgs).then(function() {
+        console.log('re-converted');
+        if (!isNewSmaller(filename)) {
+          console.log('after all that, not even smaller');
+          deleteFile(filename + '.out');}
+      });
+    } 
+    else { console.log('new is smaller!'); return; }
+  })
+  .then(function() {
     // at this point, all .out files are smaller than the originals
     // overwrite the orignals and cleanup
-
   })
 
 }
 
 var imageLocations = readdir(__dirname + '/in/', []);
 // console.log(imageLocations);
-main(imageLocations[0])
+console.log(imageLocations[6]);
+processImage(imageLocations[6])
