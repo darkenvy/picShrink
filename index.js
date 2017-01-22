@@ -18,7 +18,7 @@ function readdir(dir, imgLocations) {
 }
 
 function deleteFile(filename) {
-  return fs.unlink(filename);
+  return fs.unlinkSync(filename);
 }
 
 function isNewSmaller(originalFilename) {
@@ -46,6 +46,15 @@ function convert(imageArgs) {
   })
 }
 
+function overwriteImage(originalFilename) {
+  setTimeout(function() {
+    fs.rename(originalFilename + '.out', originalFilename, function() {
+      console.log('renamed: ', originalFilename);
+    });
+  },1000);
+
+}
+
 function processImage(filename) {
   var imgArgs = [filename];
   identify(filename)
@@ -64,24 +73,40 @@ function processImage(filename) {
   })
   .then(function() {
     if (!isNewSmaller(filename) && imgArgs[imgArgs.length - 3] == '-quality') {
+      // Retry without '-quality 82' setting
       imgArgs.splice(imgArgs.length - 3, 2);
       convert(imgArgs).then(function() {
         console.log('re-converted');
         if (!isNewSmaller(filename)) {
           console.log('after all that, not even smaller');
-          deleteFile(filename + '.out');}
+          deleteFile(filename + '.out');
+        }
       });
     } 
     else { console.log('new is smaller!'); return; }
   })
   .then(function() {
+    return overwriteImage(filename)
     // at this point, all .out files are smaller than the originals
     // overwrite the orignals and cleanup
   })
 
 }
 
+// Initial Run Setup
+if (!fs.existsSync(__dirname + '/out')) fs.mkdirSync(__dirname + '/out');
+if (!fs.existsSync(__dirname + '/in')) {
+  fs.mkdirSync(__dirname + '/in');
+  console.log('Created \'in\' directory.')
+  console.log('Place directory of files to convert in the \'in\' folder and rerun.');
+  console.log('Folders may contain other files and will process images in-place.');
+  process.exit();
+}
+
+// Actual Run
 var imageLocations = readdir(__dirname + '/in/', []);
-// console.log(imageLocations);
-console.log(imageLocations[6]);
-processImage(imageLocations[6])
+// processImage(imageLocations[2])
+imageLocations.forEach(function(file) {
+  console.log('processing ', file);
+  processImage(file);
+})
