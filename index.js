@@ -39,62 +39,63 @@ function identify(filename) {
 function convert(imageArgs) {
   return new Promise(function(resolve, reject) {
     im.convert(imageArgs, function(err, stdout) {
-      if (err) console.log(err);
+      if (err) reject(err);
       resolve();
-      // console.log('stdout: ', stdout);
     })
   })
 }
 
 function overwriteImage(originalFilename) {
-  setTimeout(function() {
+  setTimeout(function() { // Delay fixes bug where file isn't done writing yet
     fs.rename(originalFilename + '.out', originalFilename, function() {
-      console.log('renamed: ', originalFilename);
+      // console.log('renamed: ', originalFilename);
     });
   },1000);
 
 }
 
 function processImage(filename) {
-  var imgArgs = [filename];
-  identify(filename)
-  .then(function(meta) {
-    if (meta.format == 'PNG') imgArgs.push('-define', 'png:compression-level=9');
-    if (meta.colorspace != 'sRGB') imgArgs.push('-colorspace', 'sRGB');
-    if (meta.depth > 8) imgArgs.push('-depth', '8');
-    if (meta.interlace != 'None') imgArgs.push('-interlace', 'none');
-    if (meta.width > 50) imgArgs.push('-posterize', '32'); // remove from if and compare icons before/after
-    imgArgs.push('-dither', 'Riemersma');
-    imgArgs.push('-quality', '82'); // dont move. needs to be second to last
-    imgArgs.push(filename + '.out');
-  })
-  .then(function() {
-    return convert(imgArgs)
-  })
-  .then(function() {
-    if (!isNewSmaller(filename) && imgArgs[imgArgs.length - 3] == '-quality') {
-      // Retry without '-quality 82' setting
-      imgArgs.splice(imgArgs.length - 3, 2);
-      convert(imgArgs).then(function() {
-        console.log('re-converted');
-        if (!isNewSmaller(filename)) {
-          console.log('after all that, not even smaller');
-          deleteFile(filename + '.out');
-        }
-      });
-    } 
-    else { console.log('new is smaller!'); return; }
-  })
-  .then(function() {
-    return overwriteImage(filename)
-    // at this point, all .out files are smaller than the originals
-    // overwrite the orignals and cleanup
+  return new Promise(function(resolve, reject) {
+    var imgArgs = [filename];
+    identify(filename)
+    .catch(function(err) {
+      console.log('Error in identification: ', err);
+      resolve();
+    })
+    .then(function(meta) {
+      if (meta.format == 'PNG') imgArgs.push('-define', 'png:compression-level=9');
+      if (meta.colorspace != 'sRGB') imgArgs.push('-colorspace', 'sRGB');
+      if (meta.depth > 8) imgArgs.push('-depth', '8');
+      if (meta.interlace != 'None') imgArgs.push('-interlace', 'none');
+      if (meta.width > 50) imgArgs.push('-posterize', '32'); // remove from if and compare icons before/after
+      imgArgs.push('-dither', 'Riemersma');
+      imgArgs.push('-quality', '82'); // dont move. needs to be second to last
+      imgArgs.push(filename + '.out');
+    })
+    .then(function() {
+      return convert(imgArgs)
+    })
+    .then(function() {
+      if (!isNewSmaller(filename) && imgArgs[imgArgs.length - 3] == '-quality') {
+        // Retry without '-quality 82' setting
+        imgArgs.splice(imgArgs.length - 3, 2);
+        convert(imgArgs).then(function() {
+          if (!isNewSmaller(filename)) {
+            deleteFile(filename + '.out');
+          }
+        });
+      } 
+      else { return; }
+    })
+    .then(function() {
+      return overwriteImage(filename);
+    })
+    .then(function() {resolve()})
   })
 
 }
 
 // Initial Run Setup
-if (!fs.existsSync(__dirname + '/out')) fs.mkdirSync(__dirname + '/out');
 if (!fs.existsSync(__dirname + '/in')) {
   fs.mkdirSync(__dirname + '/in');
   console.log('Created \'in\' directory.')
@@ -103,10 +104,44 @@ if (!fs.existsSync(__dirname + '/in')) {
   process.exit();
 }
 
+// Check for cmd line arguments
+var processHeads = 1;
+for (var i=0; i<process.argv.length; i++) {
+  if (process.argv[i] == '-heads') processHeads = process.argv[i+1];
+  if (process.argv[i] == '--help') {
+    console.log('Place anything to be converted inside the \'in\' folder.');
+    console.log('Nested folders are recursed and non-images are okay.');
+    console.log('If the folder does not exist, run once to have it generated.\n');
+    console.log('The only parameter is \'-heads <#>\'');
+    console.log('Specify a number to instantiate multiple imagemagick threads');
+    console.log('Too many heads will overflow memory. Too few is safe but slow.');
+    process.exit();
+  }
+}
+
 // Actual Run
-var imageLocations = readdir(__dirname + '/in/', []);
-// processImage(imageLocations[2])
-imageLocations.forEach(function(file) {
-  console.log('processing ', file);
-  processImage(file);
-})
+// Due to memory allocation, we must wait for each image to complete to
+// start the next one. Plan to handle multiple concurrent conversions
+// at once
+(function(){
+  console.log('Running with ', processHeads, 'head(s)');
+  var imageLocations = readdir(__dirname + '/in/', []);
+
+  var timeStarted = Date.now();
+  // var j = 0;
+  var next = function(headID) {
+    if (headID < imageLocations.length-1) {
+      processImage(imageLocations[headID])
+      .then(function() {
+        console.log( headID + '/' + imageLocations.length, 'ETA: ',
+          parseInt((imageLocations.length - headID) * 
+                  ((Date.now() - timeStarted) / headID)/ 1000 / 60) + ' minutes');
+        console.log(imageLocations[headID]);
+        next(headID + 5);
+      })
+    }
+  }
+  // Bootstrap
+  for (var i=0; i<processHeads-1; i++) next(i);
+})();
+

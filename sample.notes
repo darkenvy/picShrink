@@ -43,3 +43,6 @@
 
 
 convert 3f36541f575801e6ff1a.png -posterize 32 -dither Riemersma -define png:compression-level=9 -colorspace sRGB -interlace none -quality 82 aaa-out.jpg
+
+
+before: 3,341,682,489 (3.34 GB)
