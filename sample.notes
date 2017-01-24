@@ -46,3 +46,17 @@ convert 3f36541f575801e6ff1a.png -posterize 32 -dither Riemersma -define png:com
 
 
 before: 3,341,682,489 (3.34 GB)
+after:  3,131,275,236 (3.13 GB) 
+
+210.4MB Saved
+6.3% reduction
+
+
+112,550 articles = 3GB in ZIM
+10,000 articles = 3.34GB pre-ZIM (from my actual test results)
+112,550 articles ~ 37.59GB pre-ZIM
+
+112,550 articles ~ 35.22GB in ZIM
+                    2.37GB saved
+112,550 articles ~ 2.9GB in Zim
+                   100MB saved

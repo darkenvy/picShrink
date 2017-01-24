@@ -1,5 +1,5 @@
 var fs = require('fs');
-var im = require('imagemagick');
+var im = require('./imagemagick'); // hotfix on line 156
 var supportedFiles = ['jpg', 'jpeg', 'png', 'gif']
 
 function readdir(dir, imgLocations) {
@@ -95,6 +95,8 @@ function processImage(filename) {
 
 }
 
+// --------------------------------- Main --------------------------------- //
+
 // Initial Run Setup
 if (!fs.existsSync(__dirname + '/in')) {
   fs.mkdirSync(__dirname + '/in');
@@ -107,7 +109,7 @@ if (!fs.existsSync(__dirname + '/in')) {
 // Check for cmd line arguments
 var processHeads = 1;
 for (var i=0; i<process.argv.length; i++) {
-  if (process.argv[i] == '-heads') processHeads = process.argv[i+1];
+  if (process.argv[i] == '-heads') processHeads = parseInt(process.argv[i+1]);
   if (process.argv[i] == '--help') {
     console.log('Place anything to be converted inside the \'in\' folder.');
     console.log('Nested folders are recursed and non-images are okay.');
@@ -135,13 +137,17 @@ for (var i=0; i<process.argv.length; i++) {
       .then(function() {
         console.log( headID + '/' + imageLocations.length, 'ETA: ',
           parseInt((imageLocations.length - headID) * 
-                  ((Date.now() - timeStarted) / headID)/ 1000 / 60) + ' minutes');
+                  ((Date.now() - timeStarted) / headID )/ 1000 / 60) + ' minutes');
         console.log(imageLocations[headID]);
-        next(headID + 5);
+        next(headID + processHeads);
       })
     }
   }
   // Bootstrap
-  for (var i=0; i<processHeads-1; i++) next(i);
+  for (var i=0; i<processHeads; i++) next(i);
 })();
 
+
+// Dry-run single-test
+// var imageLocations = readdir(__dirname + '/in/', []);
+// processImage(imageLocations[37028])
